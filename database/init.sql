@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS real_files (
     file_size   BIGINT NOT NULL,                   -- 文件总大小
     chunk_count INT NOT NULL,                      -- 分了多少个块
     ref_count   INT DEFAULT 0,                     -- 引用计数（被多少个虚拟文件引用）
+    status      TINYINT NOT NULL DEFAULT 0,        -- 0=上传中  1=已完成
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -41,17 +42,17 @@ CREATE TABLE IF NOT EXISTS chunks (
 -- 4. 虚拟文件/目录项 (virtual_files) -> 类似 dentry
 -- ==========================================
 CREATE TABLE IF NOT EXISTS virtual_files (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    user_id     INT NOT NULL,
-    parent_dir  VARCHAR(512) NOT NULL DEFAULT '/', -- 所处目录 (精确定位，解决ls问题)
-    parent_dir_md5  CHAR(32) NOT NULL,             -- 服务端计算 parent_dir 的 MD5 值
-    filename    VARCHAR(255) NOT NULL,             -- 名字
-    is_dir      TINYINT DEFAULT 0,                 -- 0=文件，1=目录
-    file_md5    VARCHAR(64),                       -- 指向的真实文件MD5 (目录则为空)
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT NOT NULL,
+    parent_id       INT NOT NULL DEFAULT 0,            -- 父目录 ID，0 表示根目录
+    filename        VARCHAR(255) NOT NULL,             -- 文件或目录的名称
+    is_dir          TINYINT DEFAULT 0,                 -- 0=文件，1=目录
+    file_md5        VARCHAR(64),                       -- 指向的真实文件MD5 (目录则为空)
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    -- file_md5 不直接做外键，因为文件还没传完时，real_files可能还没记录
     
-    UNIQUE KEY  idx_path (user_id, parent_dir_md5, filename)
+    -- 约束：同一个用户下、同一个父目录下，文件名不能重复
+    UNIQUE KEY  idx_path (user_id, parent_id, filename)
 );
-CREATE INDEX idx_ls ON virtual_files(user_id, parent_dir_md5);
+-- 索引：加速 ls 查询
+CREATE INDEX idx_ls ON virtual_files(user_id, parent_id);

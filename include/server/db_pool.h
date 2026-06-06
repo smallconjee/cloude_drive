@@ -19,7 +19,7 @@ int db_pool_init(db_pool_t *db_pool);
 MYSQL *db_pool_get(db_pool_t *db_pool);
 
 // 用完还连接池
-void db_pool_put(MYSQL *conn);
+void db_pool_put(db_pool_t *db_pool, MYSQL *conn);
 
 // 收回连接池
-void db_pool_destory(db_pool_t *db_pool);
+void db_pool_destroy(db_pool_t *db_pool);
